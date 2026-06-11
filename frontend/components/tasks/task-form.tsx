@@ -59,7 +59,13 @@ export function TaskForm({ task }: TaskFormProps) {
   }, [task, reset]);
 
   const onSubmit = (data: FormData) => {
-    const payload = { ...data, due_date: data.due_date || undefined };
+    const payload = {
+      title: data.title,
+      description: data.description || undefined,
+      status: data.status,
+      priority: data.priority,
+      due_date: data.due_date ? new Date(data.due_date + "T00:00:00").toISOString() : undefined,
+    };
     if (isEditing) {
       update.mutate({ id: task.id, data: payload }, { onSuccess: () => router.push("/tasks") });
     } else {
