@@ -8,6 +8,7 @@ import { z } from "zod";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { useCreateTask, useUpdateTask } from "@/lib/hooks/use-tasks";
+import { AttachmentSection } from "@/components/tasks/attachment-section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -142,6 +143,12 @@ export function TaskForm({ task }: TaskFormProps) {
           </Button>
         </div>
       </form>
+
+      {isEditing && (
+        <div className="bg-card border border-border rounded-2xl p-6 mt-6">
+          <AttachmentSection taskId={task!.id} />
+        </div>
+      )}
     </motion.div>
   );
 }
