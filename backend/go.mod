@@ -3,6 +3,7 @@ module github.com/taskapp/backend
 go 1.22
 
 require (
+	github.com/gin-contrib/cors v1.7.2
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-playground/validator/v10 v10.22.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
