@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/taskapp/backend/internal/model"
 )
@@ -83,14 +84,6 @@ func scanUser(row pgx.Row) (*model.User, error) {
 }
 
 func isUniqueViolation(err error) bool {
-	return err != nil && (err.Error() == `ERROR: duplicate key value violates unique constraint "users_email_key" (SQLSTATE 23505)` ||
-		containsCode(err, "23505"))
-}
-
-func containsCode(err error, code string) bool {
-	type pgErr interface{ SQLState() string }
-	if e, ok := err.(pgErr); ok {
-		return e.SQLState() == code
-	}
-	return false
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
