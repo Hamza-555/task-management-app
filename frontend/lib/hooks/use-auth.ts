@@ -15,7 +15,7 @@ export function useLogin() {
     onSuccess: ({ data }) => {
       qc.clear();
       setAuth(data.user, data.token.access_token);
-      router.push("/tasks");
+      router.push("/dashboard");
     },
   });
 }
@@ -30,7 +30,7 @@ export function useSignup() {
     onSuccess: ({ data }) => {
       qc.clear();
       setAuth(data.user, data.token.access_token);
-      router.push("/tasks");
+      router.push("/dashboard");
     },
   });
 }

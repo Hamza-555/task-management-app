@@ -58,6 +58,9 @@ func (h *TaskHandler) List(c *gin.Context) {
 		status := model.TaskStatus(s)
 		filter.Status = &status
 	}
+	if c.Query("due_today") == "true" {
+		filter.DueToday = true
+	}
 
 	result, err := h.svc.List(c.Request.Context(), userID, filter)
 	if err != nil {
@@ -143,6 +146,16 @@ func (h *TaskHandler) Delete(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+func (h *TaskHandler) Stats(c *gin.Context) {
+	userID := mustUserID(c)
+	stats, err := h.svc.GetStats(c.Request.Context(), userID)
+	if err != nil {
+		apierror.Internal(c)
+		return
+	}
+	c.JSON(http.StatusOK, stats)
 }
 
 func mustUserID(c *gin.Context) uuid.UUID {

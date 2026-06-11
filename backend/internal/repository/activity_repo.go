@@ -18,6 +18,9 @@ func NewActivityRepository(pool *pgxpool.Pool) *ActivityRepository {
 	return &ActivityRepository{pool: pool}
 }
 
+// Log writes an activity entry. For task.updated it upserts within a 5-minute
+// window so rapid toggle-complete/undo doesn't produce duplicate rows.
+// For task.deleted it removes any recent entry for that task first.
 func (r *ActivityRepository) Log(ctx context.Context, userID uuid.UUID, taskID *uuid.UUID, action string, meta any) error {
 	var metaJSON []byte
 	if meta != nil {
@@ -25,6 +28,36 @@ func (r *ActivityRepository) Log(ctx context.Context, userID uuid.UUID, taskID *
 		metaJSON, err = json.Marshal(meta)
 		if err != nil {
 			return fmt.Errorf("marshal meta: %w", err)
+		}
+	}
+
+	if action == model.ActionTaskDeleted && taskID != nil {
+		// remove any recent entries for this task so the feed doesn't show
+		// "created/updated" followed immediately by "deleted"
+		_, _ = r.pool.Exec(ctx, `
+			DELETE FROM activity_logs
+			WHERE user_id = $1 AND task_id = $2
+			  AND created_at > NOW() - INTERVAL '5 minutes'`,
+			userID, *taskID,
+		)
+	}
+
+	if action == model.ActionTaskUpdated && taskID != nil {
+		// try to refresh an existing row within the 5-minute window
+		tag, err := r.pool.Exec(ctx, `
+			UPDATE activity_logs
+			SET meta = $4, created_at = NOW()
+			WHERE id = (
+				SELECT id FROM activity_logs
+				WHERE user_id = $1 AND task_id = $2 AND action = $3
+				  AND created_at > NOW() - INTERVAL '5 minutes'
+				ORDER BY created_at DESC
+				LIMIT 1
+			)`,
+			userID, *taskID, action, metaJSON,
+		)
+		if err == nil && tag.RowsAffected() > 0 {
+			return nil // updated in-place — no new row needed
 		}
 	}
 

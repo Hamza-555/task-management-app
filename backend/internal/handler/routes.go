@@ -65,6 +65,7 @@ func (r *Router) Register(engine *gin.Engine, allowedOrigins []string) {
 		tasks := protected.Group("/tasks")
 		tasks.POST("", taskHandler.Create)
 		tasks.GET("", taskHandler.List)
+		tasks.GET("/stats", taskHandler.Stats)
 		tasks.GET("/events", sseHandler.Events)
 		tasks.GET("/:id", taskHandler.GetByID)
 		tasks.PATCH("/:id", taskHandler.Update)

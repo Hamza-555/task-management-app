@@ -7,7 +7,11 @@ export const taskKeys = {
   all: ["tasks"] as const,
   list: (filters: TaskFilters) => ["tasks", "list", filters] as const,
   detail: (id: string) => ["tasks", "detail", id] as const,
+  stats: ["tasks", "stats"] as const,
 };
+
+// Separate key so it can be invalidated independently
+export const activityKey = ["activity"] as const;
 
 export function useTasks(filters: TaskFilters = {}) {
   return useQuery({
@@ -24,11 +28,22 @@ export function useTask(id: string) {
   });
 }
 
+export function useTaskStats() {
+  return useQuery({
+    queryKey: taskKeys.stats,
+    queryFn: () => tasksApi.stats().then((r) => r.data),
+    staleTime: 30_000,
+  });
+}
+
 export function useCreateTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: CreateTaskData) => tasksApi.create(data).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: taskKeys.all }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: taskKeys.all });
+      qc.invalidateQueries({ queryKey: activityKey });
+    },
   });
 }
 
@@ -40,11 +55,7 @@ export function useUpdateTask() {
 
     onMutate: async ({ id, data }) => {
       await qc.cancelQueries({ queryKey: taskKeys.all });
-
-      // snapshot all list caches for rollback
       const snapshots = qc.getQueriesData<TaskListResult>({ queryKey: ["tasks", "list"] });
-
-      // optimistically update every cached list
       qc.setQueriesData<TaskListResult>({ queryKey: ["tasks", "list"] }, (old) => {
         if (!old) return old;
         return {
@@ -54,24 +65,19 @@ export function useUpdateTask() {
           ),
         };
       });
-
-      // optimistically update detail cache
       qc.setQueryData<Task>(taskKeys.detail(id), (old) =>
         old ? { ...old, ...data, updated_at: new Date().toISOString() } : old
       );
-
       return { snapshots };
     },
 
     onError: (_err, _vars, context) => {
-      // roll back all lists to snapshot
-      context?.snapshots?.forEach(([key, value]) => {
-        qc.setQueryData(key, value);
-      });
+      context?.snapshots?.forEach(([key, value]) => qc.setQueryData(key, value));
     },
 
     onSettled: () => {
       qc.invalidateQueries({ queryKey: taskKeys.all });
+      qc.invalidateQueries({ queryKey: activityKey });
     },
   });
 }
@@ -83,9 +89,7 @@ export function useDeleteTask() {
 
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: taskKeys.all });
-
       const snapshots = qc.getQueriesData<TaskListResult>({ queryKey: ["tasks", "list"] });
-
       qc.setQueriesData<TaskListResult>({ queryKey: ["tasks", "list"] }, (old) => {
         if (!old) return old;
         return {
@@ -94,18 +98,16 @@ export function useDeleteTask() {
           pagination: { ...old.pagination, total: old.pagination.total - 1 },
         };
       });
-
       return { snapshots };
     },
 
     onError: (_err, _vars, context) => {
-      context?.snapshots?.forEach(([key, value]) => {
-        qc.setQueryData(key, value);
-      });
+      context?.snapshots?.forEach(([key, value]) => qc.setQueryData(key, value));
     },
 
     onSettled: () => {
       qc.invalidateQueries({ queryKey: taskKeys.all });
+      qc.invalidateQueries({ queryKey: activityKey });
     },
   });
 }

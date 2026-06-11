@@ -65,6 +65,10 @@ func (s *TaskService) Update(ctx context.Context, id, userID uuid.UUID, in model
 	return task, nil
 }
 
+func (s *TaskService) GetStats(ctx context.Context, userID uuid.UUID) (*model.TaskStats, error) {
+	return s.repo.GetStats(ctx, userID)
+}
+
 func (s *TaskService) ListAll(ctx context.Context, f model.ListTasksFilter) (*model.AdminTaskListResult, error) {
 	result, err := s.repo.ListAll(ctx, f)
 	if err != nil {

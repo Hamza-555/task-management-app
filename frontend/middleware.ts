@@ -9,12 +9,17 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get("auth_token")?.value;
   const isPublic = PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
 
-  if (!token && !isPublic && pathname !== "/") {
+  if (!token && !isPublic) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
   if (token && isPublic) {
-    return NextResponse.redirect(new URL("/tasks", request.url));
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  // redirect bare root to dashboard
+  if (token && pathname === "/") {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return NextResponse.next();

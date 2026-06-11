@@ -56,8 +56,19 @@ type ListTasksFilter struct {
 	Status   *TaskStatus
 	Search   string
 	SortBy   string // due_date | priority | created_at
+	DueToday bool
 	Page     int
 	PageSize int
+}
+
+type TaskStats struct {
+	Total       int `json:"total"`
+	Todo        int `json:"todo"`
+	InProgress  int `json:"in_progress"`
+	Done        int `json:"done"`
+	HighPriority int `json:"high_priority"`
+	DueToday    int `json:"due_today"`
+	Overdue     int `json:"overdue"`
 }
 
 // TaskListResult wraps tasks with pagination metadata.

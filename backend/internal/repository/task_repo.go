@@ -77,6 +77,9 @@ func (r *TaskRepository) List(ctx context.Context, userID uuid.UUID, f model.Lis
 		args = append(args, "%"+f.Search+"%")
 		argIdx++
 	}
+	if f.DueToday {
+		where += " AND DATE(due_date AT TIME ZONE 'UTC') = CURRENT_DATE"
+	}
 
 	orderBy := "created_at DESC"
 	switch f.SortBy {
@@ -166,6 +169,27 @@ func (r *TaskRepository) Delete(ctx context.Context, id, userID uuid.UUID) error
 		return ErrNotFound
 	}
 	return nil
+}
+
+func (r *TaskRepository) GetStats(ctx context.Context, userID uuid.UUID) (*model.TaskStats, error) {
+	var s model.TaskStats
+	err := r.pool.QueryRow(ctx, `
+		SELECT
+			COUNT(*)                                                                  AS total,
+			COUNT(*) FILTER (WHERE status = 'todo')                                   AS todo,
+			COUNT(*) FILTER (WHERE status = 'in_progress')                            AS in_progress,
+			COUNT(*) FILTER (WHERE status = 'done')                                   AS done,
+			COUNT(*) FILTER (WHERE priority = 'high')                                 AS high_priority,
+			COUNT(*) FILTER (WHERE DATE(due_date AT TIME ZONE 'UTC') = CURRENT_DATE
+			                   AND status != 'done')                                  AS due_today,
+			COUNT(*) FILTER (WHERE due_date < NOW() AND status != 'done')             AS overdue
+		FROM tasks
+		WHERE user_id = $1`, userID,
+	).Scan(&s.Total, &s.Todo, &s.InProgress, &s.Done, &s.HighPriority, &s.DueToday, &s.Overdue)
+	if err != nil {
+		return nil, fmt.Errorf("get stats: %w", err)
+	}
+	return &s, nil
 }
 
 func (r *TaskRepository) ListAll(ctx context.Context, f model.ListTasksFilter) (*model.AdminTaskListResult, error) {

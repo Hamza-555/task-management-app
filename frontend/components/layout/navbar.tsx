@@ -6,6 +6,17 @@ import { useAuthStore } from "@/store/auth.store";
 import { useLogout } from "@/lib/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 
+function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="text-sm font-medium px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+    >
+      {children}
+    </Link>
+  );
+}
+
 export function Navbar() {
   const { user } = useAuthStore();
   const logout = useLogout();
@@ -14,14 +25,20 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-        <Link href="/tasks" className="flex items-center gap-2 font-semibold text-foreground">
-          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          TaskApp
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard" className="flex items-center gap-2 font-semibold text-foreground">
+            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
+              <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            TaskApp
+          </Link>
+          <nav className="hidden sm:flex items-center gap-1">
+            <NavLink href="/dashboard">Dashboard</NavLink>
+            <NavLink href="/tasks">Tasks</NavLink>
+          </nav>
+        </div>
 
         <div className="flex items-center gap-2">
           {user?.role === "admin" && (

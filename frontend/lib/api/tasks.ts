@@ -29,8 +29,19 @@ export interface TaskFilters {
   status?: TaskStatus;
   search?: string;
   sort_by?: "due_date" | "priority" | "created_at";
+  due_today?: boolean;
   page?: number;
   page_size?: number;
+}
+
+export interface TaskStats {
+  total: number;
+  todo: number;
+  in_progress: number;
+  done: number;
+  high_priority: number;
+  due_today: number;
+  overdue: number;
 }
 
 export interface CreateTaskData {
@@ -65,10 +76,13 @@ export const tasksApi = {
     if (filters.status) params.set("status", filters.status);
     if (filters.search) params.set("search", filters.search);
     if (filters.sort_by) params.set("sort_by", filters.sort_by);
+    if (filters.due_today) params.set("due_today", "true");
     if (filters.page) params.set("page", String(filters.page));
     if (filters.page_size) params.set("page_size", String(filters.page_size));
     return apiClient.get<TaskListResult>(`/api/v1/tasks?${params}`);
   },
+
+  stats: () => apiClient.get<TaskStats>("/api/v1/tasks/stats"),
 
   get: (id: string) => apiClient.get<Task>(`/api/v1/tasks/${id}`),
 

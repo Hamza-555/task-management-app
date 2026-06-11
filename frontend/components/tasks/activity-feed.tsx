@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { activityApi, type ActivityLog } from "@/lib/api/activity";
-import { taskKeys } from "@/lib/hooks/use-tasks";
+import { activityKey } from "@/lib/hooks/use-tasks";
 
 const ACTION_LABELS: Record<ActivityLog["action"], string> = {
   "task.created": "created",
@@ -28,11 +28,10 @@ function timeAgo(iso: string): string {
   return "just now";
 }
 
-export function ActivityFeed() {
+export function ActivityFeed({ limit = 15 }: { limit?: number }) {
   const { data, isLoading } = useQuery({
-    queryKey: [...taskKeys.all, "activity"],
-    queryFn: () => activityApi.list(15).then((r) => r.data.logs),
-    refetchInterval: 30_000,
+    queryKey: activityKey,
+    queryFn: () => activityApi.list(limit).then((r) => r.data.logs),
   });
 
   return (
@@ -63,7 +62,7 @@ export function ActivityFeed() {
                 </span>
                 <div className="min-w-0">
                   <p className="text-xs text-foreground truncate">
-                    {log.task_title ?? (log.meta?.title ?? "a task")}
+                    {log.task_title ?? (log.meta?.title as string) ?? "a task"}
                   </p>
                   <p className="text-[10px] text-muted-foreground">{timeAgo(log.created_at)}</p>
                 </div>
