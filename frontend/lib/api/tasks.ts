@@ -11,6 +11,7 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   due_date: string | null;
+  due_time: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -50,6 +51,7 @@ export interface CreateTaskData {
   status?: TaskStatus;
   priority?: TaskPriority;
   due_date?: string;
+  due_time?: string;
 }
 
 export interface UpdateTaskData {
@@ -58,6 +60,7 @@ export interface UpdateTaskData {
   status?: TaskStatus;
   priority?: TaskPriority;
   due_date?: string | null;
+  due_time?: string | null;
 }
 
 export interface AdminTask extends Task {

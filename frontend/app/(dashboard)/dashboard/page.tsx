@@ -1,15 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { motion } from "framer-motion";
-import { useTaskStats, useTasks } from "@/lib/hooks/use-tasks";
+import { useTaskStats } from "@/lib/hooks/use-tasks";
 import { useAuthStore } from "@/store/auth.store";
 import { ActivityFeed } from "@/components/tasks/activity-feed";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { format, isToday, isPast } from "date-fns";
-
-const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
+import { DailyTimeline } from "@/components/dashboard/daily-timeline";
 
 function StatCard({
   label, value, color, icon, delay,
@@ -41,16 +36,6 @@ function StatCard({
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const { data: stats } = useTaskStats();
-  const { data: todayData } = useTasks({
-    due_today: true,
-    sort_by: "priority",
-    page_size: 10,
-  });
-
-  const todayTasks = todayData?.tasks ?? [];
-  const sortedToday = [...todayTasks].sort(
-    (a, b) => (PRIORITY_ORDER[a.priority] ?? 1) - (PRIORITY_ORDER[b.priority] ?? 1)
-  );
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -97,71 +82,24 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* bottom columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* today's tasks — 2/3 width */}
+      {/* timeline + activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" style={{ minHeight: "520px" }}>
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="lg:col-span-2 bg-card border border-border rounded-2xl p-5"
+          className="lg:col-span-2 flex flex-col"
+          style={{ height: "520px" }}
         >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-foreground">
-              Today's tasks
-              {sortedToday.length > 0 && (
-                <span className="ml-2 text-xs font-normal text-muted-foreground">
-                  {sortedToday.filter((t) => t.status !== "done").length} remaining
-                </span>
-              )}
-            </h2>
-            <Link href="/tasks?due_today=true">
-              <Button variant="ghost" size="sm" className="text-xs">View all</Button>
-            </Link>
-          </div>
-
-          {sortedToday.length === 0 ? (
-            <div className="py-10 text-center">
-              <p className="text-4xl mb-2">🎉</p>
-              <p className="text-sm font-medium text-foreground">Nothing due today!</p>
-              <p className="text-xs text-muted-foreground mt-1">Enjoy your clear schedule.</p>
-            </div>
-          ) : (
-            <ul className="space-y-2">
-              {sortedToday.map((task, i) => {
-                const overdue = task.due_date && task.status !== "done" && isPast(new Date(task.due_date)) && !isToday(new Date(task.due_date));
-                return (
-                  <motion.li
-                    key={task.id}
-                    initial={{ opacity: 0, x: 8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.28 + i * 0.04 }}
-                  >
-                    <Link
-                      href={`/tasks/${task.id}`}
-                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors group"
-                    >
-                      <div className={`w-2 h-2 rounded-full shrink-0 ${
-                        task.priority === "high" ? "bg-rose-500" :
-                        task.priority === "medium" ? "bg-amber-500" : "bg-sky-400"
-                      }`} />
-                      <span className={`flex-1 text-sm ${task.status === "done" ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                        {task.title}
-                      </span>
-                      <Badge variant={task.status} />
-                    </Link>
-                  </motion.li>
-                );
-              })}
-            </ul>
-          )}
+          <DailyTimeline />
         </motion.div>
 
-        {/* activity feed — 1/3 width */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
+          style={{ height: "520px" }}
+          className="flex flex-col"
         >
           <ActivityFeed limit={10} />
         </motion.div>

@@ -22,6 +22,7 @@ const schema = z.object({
   status: z.enum(["todo", "in_progress", "done"]).default("todo"),
   priority: z.enum(["low", "medium", "high"]).default("medium"),
   due_date: z.string().optional(),
+  due_time: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -57,6 +58,7 @@ export function TaskForm({ task }: TaskFormProps) {
       status: task?.status ?? "todo",
       priority: task?.priority ?? "medium",
       due_date: task?.due_date ? format(new Date(task.due_date), "yyyy-MM-dd") : "",
+      due_time: task?.due_time ?? "",
     },
   });
 
@@ -68,6 +70,7 @@ export function TaskForm({ task }: TaskFormProps) {
         status: task.status,
         priority: task.priority,
         due_date: task.due_date ? format(new Date(task.due_date), "yyyy-MM-dd") : "",
+        due_time: task.due_time ?? "",
       });
     }
   }, [task, reset]);
@@ -96,6 +99,7 @@ export function TaskForm({ task }: TaskFormProps) {
       status: data.status,
       priority: data.priority,
       due_date: data.due_date ? new Date(data.due_date + "T00:00:00").toISOString() : undefined,
+      due_time: data.due_time || undefined,
     };
 
     if (isEditing) {
@@ -168,9 +172,14 @@ export function TaskForm({ task }: TaskFormProps) {
           </Field>
         </div>
 
-        <Field label="Due date" error={undefined}>
-          <Input {...register("due_date")} type="date" />
-        </Field>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Due date" error={undefined}>
+            <Input {...register("due_date")} type="date" />
+          </Field>
+          <Field label="Due time" error={undefined}>
+            <Input {...register("due_time")} type="time" />
+          </Field>
+        </div>
 
         {/* staged attachment zone — only for new tasks */}
         {!isEditing && (

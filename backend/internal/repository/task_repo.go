@@ -30,10 +30,10 @@ func (r *TaskRepository) Create(ctx context.Context, userID uuid.UUID, in model.
 	}
 
 	row := r.pool.QueryRow(ctx, `
-		INSERT INTO tasks (user_id, title, description, status, priority, due_date)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, user_id, title, description, status, priority, due_date, created_at, updated_at`,
-		userID, in.Title, in.Description, in.Status, in.Priority, in.DueDate,
+		INSERT INTO tasks (user_id, title, description, status, priority, due_date, due_time)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, user_id, title, description, status, priority, due_date, due_time, created_at, updated_at`,
+		userID, in.Title, in.Description, in.Status, in.Priority, in.DueDate, in.DueTime,
 	)
 
 	return scanTask(row)
@@ -41,7 +41,7 @@ func (r *TaskRepository) Create(ctx context.Context, userID uuid.UUID, in model.
 
 func (r *TaskRepository) GetByID(ctx context.Context, id, userID uuid.UUID) (*model.Task, error) {
 	row := r.pool.QueryRow(ctx, `
-		SELECT id, user_id, title, description, status, priority, due_date, created_at, updated_at
+		SELECT id, user_id, title, description, status, priority, due_date, due_time, created_at, updated_at
 		FROM tasks
 		WHERE id = $1 AND user_id = $2`,
 		id, userID,
@@ -84,7 +84,7 @@ func (r *TaskRepository) List(ctx context.Context, userID uuid.UUID, f model.Lis
 	orderBy := "created_at DESC"
 	switch f.SortBy {
 	case "due_date":
-		orderBy = "due_date ASC NULLS LAST, created_at DESC"
+		orderBy = "due_date ASC NULLS LAST, due_time ASC NULLS LAST, created_at DESC"
 	case "priority":
 		orderBy = "CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END ASC, created_at DESC"
 	}
@@ -100,7 +100,7 @@ func (r *TaskRepository) List(ctx context.Context, userID uuid.UUID, f model.Lis
 
 	args = append(args, f.PageSize, offset)
 	rows, err := r.pool.Query(ctx, fmt.Sprintf(`
-		SELECT id, user_id, title, description, status, priority, due_date, created_at, updated_at
+		SELECT id, user_id, title, description, status, priority, due_date, due_time, created_at, updated_at
 		FROM tasks %s
 		ORDER BY %s
 		LIMIT $%d OFFSET $%d`,
@@ -141,13 +141,14 @@ func (r *TaskRepository) Update(ctx context.Context, id, userID uuid.UUID, in mo
 			status      = COALESCE($5, status),
 			priority    = COALESCE($6, priority),
 			due_date    = COALESCE($7, due_date),
+			due_time    = COALESCE($8, due_time),
 			updated_at  = NOW()
 		WHERE id = $1 AND user_id = $2
-		RETURNING id, user_id, title, description, status, priority, due_date, created_at, updated_at`,
+		RETURNING id, user_id, title, description, status, priority, due_date, due_time, created_at, updated_at`,
 		id, userID,
 		in.Title, in.Description,
 		in.Status, in.Priority,
-		in.DueDate,
+		in.DueDate, in.DueTime,
 	)
 
 	task, err := scanTask(row)
@@ -175,14 +176,14 @@ func (r *TaskRepository) GetStats(ctx context.Context, userID uuid.UUID) (*model
 	var s model.TaskStats
 	err := r.pool.QueryRow(ctx, `
 		SELECT
-			COUNT(*)                                                                  AS total,
-			COUNT(*) FILTER (WHERE status = 'todo')                                   AS todo,
-			COUNT(*) FILTER (WHERE status = 'in_progress')                            AS in_progress,
-			COUNT(*) FILTER (WHERE status = 'done')                                   AS done,
-			COUNT(*) FILTER (WHERE priority = 'high')                                 AS high_priority,
-			COUNT(*) FILTER (WHERE DATE(due_date AT TIME ZONE 'UTC') = CURRENT_DATE
-			                   AND status != 'done')                                  AS due_today,
-			COUNT(*) FILTER (WHERE due_date < NOW() AND status != 'done')             AS overdue
+			COUNT(*)                                                              AS total,
+			COUNT(*) FILTER (WHERE status = 'todo')                               AS todo,
+			COUNT(*) FILTER (WHERE status = 'in_progress')                        AS in_progress,
+			COUNT(*) FILTER (WHERE status = 'done')                               AS done,
+			COUNT(*) FILTER (WHERE priority = 'high')                             AS high_priority,
+			COUNT(*) FILTER (WHERE DATE(due_date) = CURRENT_DATE
+			                   AND status != 'done')                              AS due_today,
+			COUNT(*) FILTER (WHERE due_date < CURRENT_DATE AND status != 'done')  AS overdue
 		FROM tasks
 		WHERE user_id = $1`, userID,
 	).Scan(&s.Total, &s.Todo, &s.InProgress, &s.Done, &s.HighPriority, &s.DueToday, &s.Overdue)
@@ -235,7 +236,8 @@ func (r *TaskRepository) ListAll(ctx context.Context, f model.ListTasksFilter) (
 
 	args = append(args, f.PageSize, offset)
 	rows, err := r.pool.Query(ctx, fmt.Sprintf(`
-		SELECT t.id, t.user_id, t.title, t.description, t.status, t.priority, t.due_date, t.created_at, t.updated_at,
+		SELECT t.id, t.user_id, t.title, t.description, t.status, t.priority,
+		       t.due_date, t.due_time, t.created_at, t.updated_at,
 		       u.name, u.email
 		FROM tasks t
 		JOIN users u ON u.id = t.user_id
@@ -254,7 +256,7 @@ func (r *TaskRepository) ListAll(ctx context.Context, f model.ListTasksFilter) (
 		var t model.AdminTask
 		err := rows.Scan(
 			&t.ID, &t.UserID, &t.Title, &t.Description,
-			&t.Status, &t.Priority, &t.DueDate,
+			&t.Status, &t.Priority, &t.DueDate, &t.DueTime,
 			&t.CreatedAt, &t.UpdatedAt,
 			&t.UserName, &t.UserEmail,
 		)
@@ -281,7 +283,7 @@ func scanTask(row pgx.Row) (*model.Task, error) {
 	var t model.Task
 	err := row.Scan(
 		&t.ID, &t.UserID, &t.Title, &t.Description,
-		&t.Status, &t.Priority, &t.DueDate,
+		&t.Status, &t.Priority, &t.DueDate, &t.DueTime,
 		&t.CreatedAt, &t.UpdatedAt,
 	)
 	if err != nil {
@@ -294,7 +296,7 @@ func scanTaskRow(rows pgx.Rows) (*model.Task, error) {
 	var t model.Task
 	err := rows.Scan(
 		&t.ID, &t.UserID, &t.Title, &t.Description,
-		&t.Status, &t.Priority, &t.DueDate,
+		&t.Status, &t.Priority, &t.DueDate, &t.DueTime,
 		&t.CreatedAt, &t.UpdatedAt,
 	)
 	if err != nil {

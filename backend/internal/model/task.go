@@ -29,6 +29,7 @@ type Task struct {
 	Status      TaskStatus   `json:"status"`
 	Priority    TaskPriority `json:"priority"`
 	DueDate     *time.Time   `json:"due_date"`
+	DueTime     *string      `json:"due_time"` // "HH:MM", nullable
 	CreatedAt   time.Time    `json:"created_at"`
 	UpdatedAt   time.Time    `json:"updated_at"`
 }
@@ -40,15 +41,17 @@ type CreateTaskInput struct {
 	Status      TaskStatus   `json:"status"      validate:"omitempty,oneof=todo in_progress done"`
 	Priority    TaskPriority `json:"priority"    validate:"omitempty,oneof=low medium high"`
 	DueDate     *time.Time   `json:"due_date"`
+	DueTime     *string      `json:"due_time"  validate:"omitempty,len=5"`
 }
 
 // UpdateTaskInput holds validated data for updating a task.
 type UpdateTaskInput struct {
-	Title       *string      `json:"title"       validate:"omitempty,min=1,max=255"`
-	Description *string      `json:"description" validate:"omitempty,max=2000"`
-	Status      *TaskStatus  `json:"status"      validate:"omitempty,oneof=todo in_progress done"`
-	Priority    *TaskPriority `json:"priority"   validate:"omitempty,oneof=low medium high"`
-	DueDate     *time.Time   `json:"due_date"`
+	Title       *string       `json:"title"       validate:"omitempty,min=1,max=255"`
+	Description *string       `json:"description" validate:"omitempty,max=2000"`
+	Status      *TaskStatus   `json:"status"      validate:"omitempty,oneof=todo in_progress done"`
+	Priority    *TaskPriority `json:"priority"    validate:"omitempty,oneof=low medium high"`
+	DueDate     *time.Time    `json:"due_date"`
+	DueTime     *string       `json:"due_time"    validate:"omitempty,len=5"`
 }
 
 // ListTasksFilter holds query parameters for listing tasks.
