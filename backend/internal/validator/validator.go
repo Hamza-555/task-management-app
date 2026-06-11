@@ -13,7 +13,7 @@ var (
 
 func Get() *validator.Validate {
 	once.Do(func() {
-		instance = validator.New(validator.WithRequiredStructFields())
+		instance = validator.New()
 	})
 	return instance
 }
