@@ -1,5 +1,3 @@
--- migrate:up
-
 CREATE TYPE task_status AS ENUM ('todo', 'in_progress', 'done');
 CREATE TYPE task_priority AS ENUM ('low', 'medium', 'high');
 
@@ -19,9 +17,3 @@ CREATE INDEX idx_tasks_user_id  ON tasks(user_id);
 CREATE INDEX idx_tasks_status   ON tasks(status);
 CREATE INDEX idx_tasks_priority ON tasks(priority);
 CREATE INDEX idx_tasks_due_date ON tasks(due_date);
-
--- migrate:down
-
-DROP TABLE IF EXISTS tasks;
-DROP TYPE IF EXISTS task_priority;
-DROP TYPE IF EXISTS task_status;
