@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/taskapp/backend/internal/config"
 	"github.com/taskapp/backend/internal/db"
+	"github.com/taskapp/backend/internal/handler"
 )
 
 func main() {
@@ -33,15 +35,20 @@ func main() {
 	}
 	defer pool.Close()
 
-	router := gin.Default()
+	gin.SetMode(gin.ReleaseMode)
+	engine := gin.New()
+	engine.Use(gin.Recovery())
 
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
+	origins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
+	router := handler.NewRouter(pool)
+	router.Register(engine, origins)
 
 	srv := &http.Server{
-		Addr:    ":" + cfg.Server.Port,
-		Handler: router,
+		Addr:         ":" + cfg.Server.Port,
+		Handler:      engine,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 
 	go func() {
