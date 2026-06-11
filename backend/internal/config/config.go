@@ -17,6 +17,7 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
+	URL      string // takes priority when set (e.g. Neon connection string)
 	Host     string
 	Port     string
 	User     string
@@ -29,10 +30,25 @@ type JWTConfig struct {
 	ExpiryHours int
 }
 
+// DSN returns the connection string, preferring DATABASE_URL if set.
 func (d DatabaseConfig) DSN() string {
+	if d.URL != "" {
+		return d.URL
+	}
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		d.Host, d.Port, d.User, d.Password, d.Name,
+	)
+}
+
+// MigrateDSN returns a postgres:// URL for golang-migrate.
+func (d DatabaseConfig) MigrateDSN() string {
+	if d.URL != "" {
+		return d.URL
+	}
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		d.User, d.Password, d.Host, d.Port, d.Name,
 	)
 }
 
@@ -47,6 +63,7 @@ func Load() (*Config, error) {
 			Port: getEnv("SERVER_PORT", "8080"),
 		},
 		Database: DatabaseConfig{
+			URL:      os.Getenv("DATABASE_URL"),
 			Host:     getEnv("POSTGRES_HOST", "localhost"),
 			Port:     getEnv("POSTGRES_PORT", "5432"),
 			User:     getEnv("POSTGRES_USER", "taskapp"),

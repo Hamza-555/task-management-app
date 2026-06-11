@@ -10,12 +10,7 @@ import (
 )
 
 func RunMigrations(cfg config.DatabaseConfig) error {
-	dsn := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name,
-	)
-
-	m, err := migrate.New("file://migrations", dsn)
+	m, err := migrate.New("file://migrations", cfg.MigrateDSN())
 	if err != nil {
 		return fmt.Errorf("init migrate: %w", err)
 	}

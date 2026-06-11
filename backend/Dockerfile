@@ -4,10 +4,12 @@ WORKDIR /app
 
 RUN apk add --no-cache git
 
-COPY go.mod go.sum ./
-RUN go mod download
-
+COPY go.mod ./
 COPY . .
+
+# generate go.sum and download deps in one step
+RUN go mod tidy && go mod download
+
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o bin/server ./cmd/server
 
 FROM alpine:3.19
