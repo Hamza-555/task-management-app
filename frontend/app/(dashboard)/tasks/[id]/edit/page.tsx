@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { useTask } from "@/lib/hooks/use-tasks";
 import { TaskForm } from "@/components/tasks/task-form";
+import { AttachmentSection } from "@/components/tasks/attachment-section";
 
 export default function EditTaskPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,5 +20,10 @@ export default function EditTaskPage() {
 
   if (!task) return null;
 
-  return <TaskForm task={task} />;
+  return (
+    <div className="max-w-xl mx-auto space-y-8">
+      <TaskForm task={task} />
+      <AttachmentSection taskId={id} />
+    </div>
+  );
 }

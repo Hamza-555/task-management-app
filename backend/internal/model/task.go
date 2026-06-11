@@ -72,3 +72,15 @@ type PaginationMeta struct {
 	PageSize   int `json:"page_size"`
 	TotalPages int `json:"total_pages"`
 }
+
+// AdminTask is a task with the owning user's name and email, used by admin endpoints.
+type AdminTask struct {
+	Task
+	UserName  string `json:"user_name"`
+	UserEmail string `json:"user_email"`
+}
+
+type AdminTaskListResult struct {
+	Tasks      []AdminTask    `json:"tasks"`
+	Pagination PaginationMeta `json:"pagination"`
+}

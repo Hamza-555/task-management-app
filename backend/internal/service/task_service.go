@@ -8,14 +8,17 @@ import (
 	"github.com/google/uuid"
 	"github.com/taskapp/backend/internal/model"
 	"github.com/taskapp/backend/internal/repository"
+	"github.com/taskapp/backend/internal/sse"
 )
 
 type TaskService struct {
-	repo *repository.TaskRepository
+	repo        *repository.TaskRepository
+	activityRepo *repository.ActivityRepository
+	broadcaster *sse.Broadcaster
 }
 
-func NewTaskService(repo *repository.TaskRepository) *TaskService {
-	return &TaskService{repo: repo}
+func NewTaskService(repo *repository.TaskRepository, activityRepo *repository.ActivityRepository, broadcaster *sse.Broadcaster) *TaskService {
+	return &TaskService{repo: repo, activityRepo: activityRepo, broadcaster: broadcaster}
 }
 
 var ErrNotFound = errors.New("not found")
@@ -25,6 +28,8 @@ func (s *TaskService) Create(ctx context.Context, userID uuid.UUID, in model.Cre
 	if err != nil {
 		return nil, fmt.Errorf("create task: %w", err)
 	}
+	s.broadcaster.Emit(userID.String(), sse.Event{Type: sse.EventTaskCreated, Payload: task})
+	_ = s.activityRepo.Log(ctx, userID, &task.ID, model.ActionTaskCreated, map[string]string{"title": task.Title})
 	return task, nil
 }
 
@@ -55,7 +60,17 @@ func (s *TaskService) Update(ctx context.Context, id, userID uuid.UUID, in model
 	if err != nil {
 		return nil, fmt.Errorf("update task: %w", err)
 	}
+	s.broadcaster.Emit(userID.String(), sse.Event{Type: sse.EventTaskUpdated, Payload: task})
+	_ = s.activityRepo.Log(ctx, userID, &task.ID, model.ActionTaskUpdated, map[string]string{"title": task.Title})
 	return task, nil
+}
+
+func (s *TaskService) ListAll(ctx context.Context, f model.ListTasksFilter) (*model.AdminTaskListResult, error) {
+	result, err := s.repo.ListAll(ctx, f)
+	if err != nil {
+		return nil, fmt.Errorf("list all tasks: %w", err)
+	}
+	return result, nil
 }
 
 func (s *TaskService) Delete(ctx context.Context, id, userID uuid.UUID) error {
@@ -66,5 +81,7 @@ func (s *TaskService) Delete(ctx context.Context, id, userID uuid.UUID) error {
 	if err != nil {
 		return fmt.Errorf("delete task: %w", err)
 	}
+	s.broadcaster.Emit(userID.String(), sse.Event{Type: sse.EventTaskDeleted, Payload: map[string]string{"id": id.String()}})
+	_ = s.activityRepo.Log(ctx, userID, &id, model.ActionTaskDeleted, nil)
 	return nil
 }

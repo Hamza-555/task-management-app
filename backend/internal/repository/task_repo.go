@@ -168,6 +168,91 @@ func (r *TaskRepository) Delete(ctx context.Context, id, userID uuid.UUID) error
 	return nil
 }
 
+func (r *TaskRepository) ListAll(ctx context.Context, f model.ListTasksFilter) (*model.AdminTaskListResult, error) {
+	if f.Page < 1 {
+		f.Page = 1
+	}
+	if f.PageSize < 1 || f.PageSize > 100 {
+		f.PageSize = 20
+	}
+	offset := (f.Page - 1) * f.PageSize
+
+	args := []any{}
+	where := "WHERE 1=1"
+	argIdx := 1
+
+	if f.Status != nil {
+		where += fmt.Sprintf(" AND t.status = $%d", argIdx)
+		args = append(args, *f.Status)
+		argIdx++
+	}
+	if f.Search != "" {
+		where += fmt.Sprintf(" AND t.title ILIKE $%d", argIdx)
+		args = append(args, "%"+f.Search+"%")
+		argIdx++
+	}
+
+	orderBy := "t.created_at DESC"
+	switch f.SortBy {
+	case "due_date":
+		orderBy = "t.due_date ASC NULLS LAST, t.created_at DESC"
+	case "priority":
+		orderBy = "CASE t.priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END ASC, t.created_at DESC"
+	}
+
+	countRow := r.pool.QueryRow(ctx,
+		fmt.Sprintf("SELECT COUNT(*) FROM tasks t %s", where),
+		args...,
+	)
+	var total int
+	if err := countRow.Scan(&total); err != nil {
+		return nil, fmt.Errorf("count tasks: %w", err)
+	}
+
+	args = append(args, f.PageSize, offset)
+	rows, err := r.pool.Query(ctx, fmt.Sprintf(`
+		SELECT t.id, t.user_id, t.title, t.description, t.status, t.priority, t.due_date, t.created_at, t.updated_at,
+		       u.name, u.email
+		FROM tasks t
+		JOIN users u ON u.id = t.user_id
+		%s
+		ORDER BY %s
+		LIMIT $%d OFFSET $%d`,
+		where, orderBy, argIdx, argIdx+1,
+	), args...)
+	if err != nil {
+		return nil, fmt.Errorf("list all tasks: %w", err)
+	}
+	defer rows.Close()
+
+	tasks := make([]model.AdminTask, 0)
+	for rows.Next() {
+		var t model.AdminTask
+		err := rows.Scan(
+			&t.ID, &t.UserID, &t.Title, &t.Description,
+			&t.Status, &t.Priority, &t.DueDate,
+			&t.CreatedAt, &t.UpdatedAt,
+			&t.UserName, &t.UserEmail,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan admin task: %w", err)
+		}
+		tasks = append(tasks, t)
+	}
+
+	totalPages := (total + f.PageSize - 1) / f.PageSize
+
+	return &model.AdminTaskListResult{
+		Tasks: tasks,
+		Pagination: model.PaginationMeta{
+			Total:      total,
+			Page:       f.Page,
+			PageSize:   f.PageSize,
+			TotalPages: totalPages,
+		},
+	}, nil
+}
+
 func scanTask(row pgx.Row) (*model.Task, error) {
 	var t model.Task
 	err := row.Scan(

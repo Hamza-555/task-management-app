@@ -9,6 +9,7 @@ import (
 	"github.com/taskapp/backend/internal/middleware"
 	"github.com/taskapp/backend/internal/repository"
 	"github.com/taskapp/backend/internal/service"
+	"github.com/taskapp/backend/internal/sse"
 )
 
 type Router struct {
@@ -30,12 +31,21 @@ func (r *Router) Register(engine *gin.Engine, allowedOrigins []string) {
 
 	taskRepo := repository.NewTaskRepository(r.pool)
 	userRepo := repository.NewUserRepository(r.pool)
+	activityRepo := repository.NewActivityRepository(r.pool)
+	attachmentRepo := repository.NewAttachmentRepository(r.pool)
 
-	taskSvc := service.NewTaskService(taskRepo)
+	broadcaster := sse.New()
+
+	taskSvc := service.NewTaskService(taskRepo, activityRepo, broadcaster)
 	authSvc := service.NewAuthService(userRepo, r.cfg.JWT.Secret, r.cfg.JWT.ExpiryHours)
+	activitySvc := service.NewActivityService(activityRepo)
 
 	taskHandler := NewTaskHandler(taskSvc)
 	authHandler := NewAuthHandler(authSvc)
+	sseHandler := NewSSEHandler(broadcaster)
+	adminHandler := NewAdminHandler(taskSvc)
+	activityHandler := NewActivityHandler(activitySvc)
+	attachmentHandler := NewAttachmentHandler(attachmentRepo)
 
 	v1 := engine.Group("/api/v1")
 
@@ -55,8 +65,19 @@ func (r *Router) Register(engine *gin.Engine, allowedOrigins []string) {
 		tasks := protected.Group("/tasks")
 		tasks.POST("", taskHandler.Create)
 		tasks.GET("", taskHandler.List)
+		tasks.GET("/events", sseHandler.Events)
 		tasks.GET("/:id", taskHandler.GetByID)
 		tasks.PATCH("/:id", taskHandler.Update)
 		tasks.DELETE("/:id", taskHandler.Delete)
+		tasks.POST("/:id/attachments", attachmentHandler.Upload)
+		tasks.GET("/:id/attachments", attachmentHandler.List)
+		tasks.GET("/:id/attachments/:attid", attachmentHandler.Download)
+		tasks.DELETE("/:id/attachments/:attid", attachmentHandler.Delete)
+
+		protected.GET("/activity", activityHandler.List)
+
+		admin := protected.Group("/admin")
+		admin.Use(middleware.AdminRequired())
+		admin.GET("/tasks", adminHandler.ListTasks)
 	}
 }

@@ -10,14 +10,18 @@ import (
 
 func AuthRequired(jwtSecret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		header := c.GetHeader("Authorization")
-		if header == "" || !strings.HasPrefix(header, "Bearer ") {
+		var token string
+		if header := c.GetHeader("Authorization"); strings.HasPrefix(header, "Bearer ") {
+			token = strings.TrimPrefix(header, "Bearer ")
+		} else if cookie, err := c.Cookie("auth_token"); err == nil && cookie != "" {
+			token = cookie
+		}
+
+		if token == "" {
 			apierror.Unauthorized(c, "missing or malformed authorization header")
 			c.Abort()
 			return
 		}
-
-		token := strings.TrimPrefix(header, "Bearer ")
 		claims, err := auth.ParseToken(token, jwtSecret)
 		if err != nil {
 			apierror.Unauthorized(c, "invalid or expired token")

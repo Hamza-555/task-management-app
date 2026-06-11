@@ -49,6 +49,16 @@ export interface UpdateTaskData {
   due_date?: string | null;
 }
 
+export interface AdminTask extends Task {
+  user_name: string;
+  user_email: string;
+}
+
+export interface AdminTaskListResult {
+  tasks: AdminTask[];
+  pagination: TaskListResult["pagination"];
+}
+
 export const tasksApi = {
   list: (filters: TaskFilters = {}) => {
     const params = new URLSearchParams();
@@ -68,4 +78,14 @@ export const tasksApi = {
     apiClient.patch<Task>(`/api/v1/tasks/${id}`, data),
 
   delete: (id: string) => apiClient.delete(`/api/v1/tasks/${id}`),
+
+  adminList: (filters: TaskFilters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.status) params.set("status", filters.status);
+    if (filters.search) params.set("search", filters.search);
+    if (filters.sort_by) params.set("sort_by", filters.sort_by);
+    if (filters.page) params.set("page", String(filters.page));
+    if (filters.page_size) params.set("page_size", String(filters.page_size));
+    return apiClient.get<AdminTaskListResult>(`/api/v1/admin/tasks?${params}`);
+  },
 };

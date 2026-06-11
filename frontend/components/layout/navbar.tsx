@@ -24,6 +24,14 @@ export function Navbar() {
         </Link>
 
         <div className="flex items-center gap-2">
+          {user?.role === "admin" && (
+            <Link
+              href="/admin/tasks"
+              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+            >
+              Admin
+            </Link>
+          )}
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
