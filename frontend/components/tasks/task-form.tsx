@@ -46,7 +46,17 @@ export function TaskForm({ task }: TaskFormProps) {
     },
   });
 
-  useEffect(() => { if (task) reset({ ...task, due_date: task.due_date ? format(new Date(task.due_date), "yyyy-MM-dd") : "" }); }, [task, reset]);
+  useEffect(() => {
+    if (task) {
+      reset({
+        title: task.title,
+        description: task.description ?? undefined,
+        status: task.status,
+        priority: task.priority,
+        due_date: task.due_date ? format(new Date(task.due_date), "yyyy-MM-dd") : "",
+      });
+    }
+  }, [task, reset]);
 
   const onSubmit = (data: FormData) => {
     const payload = { ...data, due_date: data.due_date || undefined };
