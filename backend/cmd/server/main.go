@@ -39,7 +39,12 @@ func main() {
 	engine := gin.New()
 	engine.Use(gin.Recovery())
 
-	origins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
+	var origins []string
+	for _, o := range strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",") {
+		if o = strings.TrimSpace(o); o != "" {
+			origins = append(origins, o)
+		}
+	}
 	router := handler.NewRouter(pool, cfg)
 	router.Register(engine, origins)
 
