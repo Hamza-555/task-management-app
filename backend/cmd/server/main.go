@@ -40,7 +40,7 @@ func main() {
 	engine.Use(gin.Recovery())
 
 	origins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
-	router := handler.NewRouter(pool)
+	router := handler.NewRouter(pool, cfg)
 	router.Register(engine, origins)
 
 	srv := &http.Server{
