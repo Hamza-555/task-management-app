@@ -1,0 +1,27 @@
+-- migrate:up
+
+CREATE TYPE task_status AS ENUM ('todo', 'in_progress', 'done');
+CREATE TYPE task_priority AS ENUM ('low', 'medium', 'high');
+
+CREATE TABLE tasks (
+    id          UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title       VARCHAR(255)  NOT NULL,
+    description TEXT,
+    status      task_status   NOT NULL DEFAULT 'todo',
+    priority    task_priority NOT NULL DEFAULT 'medium',
+    due_date    TIMESTAMPTZ,
+    created_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_tasks_user_id  ON tasks(user_id);
+CREATE INDEX idx_tasks_status   ON tasks(status);
+CREATE INDEX idx_tasks_priority ON tasks(priority);
+CREATE INDEX idx_tasks_due_date ON tasks(due_date);
+
+-- migrate:down
+
+DROP TABLE IF EXISTS tasks;
+DROP TYPE IF EXISTS task_priority;
+DROP TYPE IF EXISTS task_status;
