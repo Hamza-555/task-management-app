@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { useTasks } from "@/lib/hooks/use-tasks";
+import { useTasks, useUpdateTask } from "@/lib/hooks/use-tasks";
 import type { Task } from "@/lib/api/tasks";
 
-const START_HOUR = 6;   // 6 AM
-const END_HOUR = 23;    // 11 PM
-const SLOT_H = 80;      // px per hour
+const START_HOUR = 6;
+const END_HOUR = 23;
+const SLOT_H = 80;
 
 const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => i + START_HOUR);
 
@@ -30,6 +30,72 @@ function timeToTop(t: string): number {
   return h * SLOT_H + (m / 60) * SLOT_H;
 }
 
+function UnscheduledTask({ task }: { task: Task }) {
+  const [editing, setEditing] = useState(false);
+  const [time, setTime] = useState("");
+  const update = useUpdateTask();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleSetTime(e: React.FormEvent) {
+    e.preventDefault();
+    if (!time) { setEditing(false); return; }
+    update.mutate(
+      { id: task.id, data: { due_time: time } },
+      { onSettled: () => setEditing(false) }
+    );
+  }
+
+  if (editing) {
+    return (
+      <form onSubmit={handleSetTime} className="flex items-center gap-1.5">
+        <input
+          ref={inputRef}
+          type="time"
+          value={time}
+          onChange={(e) => setTime(e.target.value)}
+          autoFocus
+          className="text-xs h-7 rounded-lg border border-border bg-input px-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+        <button
+          type="submit"
+          disabled={update.isPending}
+          className="text-xs px-2 h-7 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {update.isPending ? "…" : "Set"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setEditing(false)}
+          className="text-xs px-2 h-7 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80"
+        >
+          ✕
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2 group">
+      <Link href={`/tasks/${task.id}`} className="flex items-center gap-2 flex-1 min-w-0">
+        <div className={`inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity ${PRIORITY_PILL[task.priority]} ${task.status === "done" ? "opacity-40" : ""}`}>
+          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+            task.priority === "high" ? "bg-rose-500" :
+            task.priority === "medium" ? "bg-amber-500" : "bg-sky-400"
+          }`} />
+          <span className={task.status === "done" ? "line-through" : ""}>{task.title}</span>
+        </div>
+      </Link>
+      <button
+        onClick={() => setEditing(true)}
+        title="Set time"
+        className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-muted-foreground hover:text-primary px-1.5 py-1 rounded-md hover:bg-muted shrink-0"
+      >
+        + time
+      </button>
+    </div>
+  );
+}
+
 export function DailyTimeline() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const now = new Date();
@@ -38,7 +104,6 @@ export function DailyTimeline() {
 
   const { data, isLoading } = useTasks({ due_today: true, page_size: 100 });
 
-  // separate tasks with / without a time
   const timed: Task[] = [];
   const untimed: Task[] = [];
   for (const t of data?.tasks ?? []) {
@@ -46,13 +111,11 @@ export function DailyTimeline() {
     else untimed.push(t);
   }
 
-  // now-line position
   const nowTop =
     nowHour >= START_HOUR && nowHour <= END_HOUR
       ? (nowHour - START_HOUR) * SLOT_H + (nowMin / 60) * SLOT_H
       : -1;
 
-  // auto-scroll to current hour on mount
   useEffect(() => {
     if (!scrollRef.current || nowHour < START_HOUR) return;
     const target = (nowHour - START_HOUR) * SLOT_H - 60;
@@ -82,19 +145,11 @@ export function DailyTimeline() {
       {untimed.length > 0 && (
         <div className="px-4 py-3 border-b border-border/60 bg-muted/30 shrink-0">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-            Unscheduled
+            Unscheduled · hover to set a time
           </p>
           <div className="flex flex-col gap-1.5">
             {untimed.map((t) => (
-              <Link key={t.id} href={`/tasks/${t.id}`}>
-                <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-opacity ${PRIORITY_PILL[t.priority]} ${t.status === "done" ? "opacity-40" : ""}`}>
-                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                    t.priority === "high" ? "bg-rose-500" :
-                    t.priority === "medium" ? "bg-amber-500" : "bg-sky-400"
-                  }`} />
-                  <span className={t.status === "done" ? "line-through" : ""}>{t.title}</span>
-                </div>
-              </Link>
+              <UnscheduledTask key={t.id} task={t} />
             ))}
           </div>
         </div>
@@ -108,7 +163,6 @@ export function DailyTimeline() {
           </div>
         )}
 
-        {/* hour grid */}
         <div className="relative" style={{ height: `${HOURS.length * SLOT_H}px` }}>
           {HOURS.map((h) => {
             const isCurrentHour = h === nowHour;
@@ -118,19 +172,16 @@ export function DailyTimeline() {
                 className="absolute left-0 right-0 flex"
                 style={{ top: `${(h - START_HOUR) * SLOT_H}px`, height: `${SLOT_H}px` }}
               >
-                {/* hour label */}
                 <div className={`w-14 pt-2.5 pr-3 text-right text-xs shrink-0 select-none ${
                   isCurrentHour ? "text-primary font-semibold" : "text-muted-foreground"
                 }`}>
                   {format(new Date(2000, 0, 1, h), "h a")}
                 </div>
-                {/* slot area */}
                 <div className="flex-1 border-t border-border/40 pt-1 pr-3 relative" />
               </div>
             );
           })}
 
-          {/* task pills — positioned absolutely */}
           {timed.map((task) => {
             if (!task.due_time) return null;
             const th = parseHour(task.due_time);
@@ -146,7 +197,7 @@ export function DailyTimeline() {
                 <Link href={`/tasks/${task.id}`}>
                   <div className={`inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium max-w-full shadow-sm transition-opacity ${PRIORITY_PILL[task.priority]} ${task.status === "done" ? "opacity-40" : ""}`}>
                     <span className="text-[10px] font-mono opacity-70 shrink-0">
-                      {task.due_time}
+                      {format(new Date(`2000-01-01T${task.due_time}`), "h:mm a")}
                     </span>
                     <span className={`truncate ${task.status === "done" ? "line-through" : ""}`}>
                       {task.title}
@@ -157,7 +208,6 @@ export function DailyTimeline() {
             );
           })}
 
-          {/* now indicator */}
           {nowTop >= 0 && (
             <div
               className="absolute left-14 right-0 z-20 flex items-center pointer-events-none"

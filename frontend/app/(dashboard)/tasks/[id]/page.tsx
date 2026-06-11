@@ -89,11 +89,19 @@ export default function TaskDetailPage() {
           )}
 
           {/* meta */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2 border-t border-border">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2 border-t border-border">
             <div>
               <p className="text-xs text-muted-foreground mb-0.5">Due date</p>
               <p className={`text-sm font-medium ${isOverdue ? "text-destructive" : "text-foreground"}`}>
                 {task.due_date ? format(new Date(task.due_date), "MMM d, yyyy") : "—"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">Due time</p>
+              <p className="text-sm font-medium text-foreground">
+                {task.due_time
+                  ? format(new Date(`2000-01-01T${task.due_time}`), "h:mm a")
+                  : "—"}
               </p>
             </div>
             <div>
